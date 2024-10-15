@@ -1,18 +1,26 @@
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Bind resources to your worker in `wrangler.toml`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
-
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
+		const pathname = new URL(request.url).pathname;
+		const method = request.method;
+		if (pathname === '/api/clickstream' && method === 'POST') {
+			const body = (await request.json()) as { data: any };
+			try {
+				const response = await fetch(`https://${env.PIPELINES_ID}.pipelines.cloudflare.com`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify([body.data]),
+				});
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`);
+				}
+				return new Response('OK', { status: 200 });
+			} catch (error) {
+				console.error(error);
+				return new Response('Internal Server Error', { status: 500 });
+			}
+		}
 		return new Response('Hello World!');
 	},
 } satisfies ExportedHandler<Env>;
